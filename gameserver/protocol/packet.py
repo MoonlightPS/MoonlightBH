@@ -15,7 +15,6 @@ class Packet:
     _userId = 0
     _userIp = 0
     _userSessionId = 0
-    cmdid = 0
     _unk = 0
     _bodyLen = 0
     header = bytearray.fromhex("0885a35e10acbf94a00d")
@@ -68,6 +67,9 @@ class Packet:
             raise Exception('Empty Body??? wtf?')
 
         buf = BinaryReader()
+        
+        body = bytes(self.body)
+        self._bodyLen = len(body)
 
         buf.write_u32b(PACKET_MAGIC[0])
         buf.write_u16b(self._packetVersion)
@@ -80,7 +82,7 @@ class Packet:
         buf.write_u16b(self._unk)
         buf.write_u32b(self._bodyLen)
 
-        body = bytes(self.body)
+        
         
         if self.has_header:
             buf.write(self.header)

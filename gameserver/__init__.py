@@ -34,7 +34,10 @@ class Connection:
         packet = bytes(Packet(body=msg, is_after_login=is_after_login))
         logger.opt(colors=True).debug(
             f'<yellow>{self.server_address[0]}</yellow> Send: <cyan>{msg}</cyan>')
-        self.sock.sendall(bytes(packet))
+        self.send_raw(bytes(packet))
+
+    def send_raw(self,msg: bytes):
+        self.sock.sendall(msg)
 
 
 Handler = Callable[[Connection, Packet], None]
