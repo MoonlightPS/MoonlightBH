@@ -15,6 +15,7 @@ class Connection(socketserver.BaseRequestHandler):
         while True:
             self.data = self.request.recv(2048).strip()
             packet = Packet().parse(self.data)
+            print(bytes(packet.body).hex())
             if handler := self.server.router.get(packet.cmdid):
                 logger.opt(colors=True).debug(f'<yellow>{self.client_address[0]}</yellow> Receive: <cyan>{packet.body}</cyan>')
                 handler(self, packet.body)
@@ -22,9 +23,9 @@ class Connection(socketserver.BaseRequestHandler):
                 logger.opt(colors=True).warning(f'<red>Unhandled Packet:</red> <cyan>{packet.body}</cyan>')
 
     def send(self, msg: betterproto.Message, is_after_login: bool = True):
-        packet = bytes(Packet(body=msg,is_after_login=is_after_login))
+        packet = Packet(body=msg,is_after_login=is_after_login)
         logger.opt(colors=True).debug(f'<yellow>{self.server.server_address[0]}</yellow> Send: <cyan>{msg}</cyan>')
-        self.request.sendall(bytes(packet))
+        self.request.send(bytes(packet))
         
 
     def close(self):
@@ -63,6 +64,7 @@ class GameServer(socketserver.ThreadingMixIn,socketserver.TCPServer):
 
     def __init__(self, host,port):
         socketserver.TCPServer.__init__(self, (host,port), Connection)
+        self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, True)
         self.socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, True)
     
     def start_server(self):

@@ -1,7 +1,7 @@
 from gameserver.protocol.packet import Packet
 from gameserver.protocol.cmd_id import CmdId
 from gameserver import HandlerRouter,Connection
-from lib.proto import GetPlayerTokenReq,GetPlayerTokenRsp,PlayerLoginReq,PlayerLoginRsp
+from lib.proto import GetPlayerTokenReq,GetPlayerTokenRsp,PlayerLoginReq,PlayerLoginRsp,GetPlayerTokenRspRetcode
 from gameserver.utils.time import current_milli_time
 
 router = HandlerRouter()
@@ -9,6 +9,7 @@ router = HandlerRouter()
 @router(CmdId.GetPlayerTokenReq)
 def handle_token_req(conn: Connection, msg: GetPlayerTokenReq):
     rsp = GetPlayerTokenRsp(
+        retcode= GetPlayerTokenRspRetcode.SUCC,
         uid=1,
         account_type=24,
         user_type=4,
