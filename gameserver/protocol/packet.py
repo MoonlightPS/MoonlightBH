@@ -15,15 +15,14 @@ class Packet:
     _userId = 0
     _userIp = 0
     _userSessionId = 0
-    _CmdId = 0 # Used to be gatewayIp
-    _unk = 0 # Used to be CmdId
+    _CmdId = 0
+    _unk = 0
     _bodyLen = 0
+    header = bytearray.fromhex("0885a35e10acbf94a00d")
 
 
     def __init__(self, body: betterproto.Message = None, is_after_login: bool = True):
         self.has_header = is_after_login
-        if self.has_header:
-            self.head = bytearray.fromhex("0885a35e10acbf94a00d")
 
         self.body = body
         if not body == None:
@@ -84,13 +83,11 @@ class Packet:
         body = bytes(self.body)
         
         if self.has_header:
-            buf.write(self.head)
+            buf.write(self.header)
 
         if len(body) > 0:
             buf.write(body)
 
         buf.write_u32b(PACKET_MAGIC[1])
-
-        
 
         return buf.getvalue()
