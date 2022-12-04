@@ -1,37 +1,44 @@
 from __future__ import annotations
 import threading
-import socketserver
 import socket
 from gameserver.protocol.packet import Packet
 from gameserver.protocol.cmd_id import CmdId
 from typing import Callable
 import betterproto
 from loguru import logger
-import sys
+import traceback
 
-class Connection(socketserver.BaseRequestHandler):
 
-    def handle(self):
-        while True:
-            self.data = self.request.recv(2048).strip()
-            packet = Packet().parse(self.data)
-            if handler := self.server.router.get(packet.cmdid):
-                logger.opt(colors=True).debug(f'<yellow>{self.client_address[0]}</yellow> Receive: <cyan>{packet.body}</cyan>')
-                handler(self, packet.body)
-            else:
-                logger.opt(colors=True).warning(f'<red>Unhandled Packet:</red> <cyan>{packet.body}</cyan>')
+class Connection:
+    game_server: GameServer
+    sock: socket.socket
+    client_address: socket._Address
+    server_address: socket._Address
+
+    def __init__(self, game_server: GameServer, sock: socket.socket, client_address: socket._Address, server_address: socket._Address) -> None:
+        self.sock = sock
+        self.client_address = client_address
+        self.server_address = server_address
+        self.game_server = game_server
+
+    def handle(self, data: bytes):
+        packet = Packet()
+        packet.parse(data)
+
+        logger.opt(colors=True).debug(
+            f'<yellow>{self.client_address[0]}</yellow> Receive: <cyan>{packet.body}</cyan>')
+        if handler := self.game_server.router.get(packet.cmdid):
+            handler(self, packet.body)
 
     def send(self, msg: betterproto.Message, is_after_login: bool = True):
-        packet = Packet(body=msg,is_after_login=is_after_login)
-        logger.opt(colors=True).debug(f'<yellow>{self.server.server_address[0]}</yellow> Send: <cyan>{msg}</cyan>')
-        self.request.send(bytes(packet))
-        
+        packet = bytes(Packet(body=msg, is_after_login=is_after_login))
+        logger.opt(colors=True).debug(
+            f'<yellow>{self.server_address[0]}</yellow> Send: <cyan>{msg}</cyan>')
+        self.sock.sendall(bytes(packet))
 
-    def close(self):
-        logger.opt(colors=True).info(f'<yellow>Closing Connection from</yellow><cyan> {self.client_address[0]}:{self.client_address[1]}</cyan>')
-        self.request.close()
-        
+
 Handler = Callable[[Connection, Packet], None]
+
 
 class HandlerRouter:
     _handlers: dict[CmdId, HandlerRouter]
@@ -52,35 +59,39 @@ class HandlerRouter:
         return wrapper
 
 
-class GameServer(socketserver.ThreadingMixIn,socketserver.TCPServer):
-    # Ctrl-C will cleanly kill all spawned threads
-    daemon_threads = True
-    # much faster rebinding
-    allow_reuse_address = True
-
+class GameServer:
     router: HandlerRouter = HandlerRouter()
     conns: dict[str, Connection] = {}
 
-    def __init__(self, host,port):
-        socketserver.TCPServer.__init__(self, (host,port), Connection)
-        self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, True)
-        self.socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, True)
-    
-    def start_server(self):
-        print(f'[TCP] Listening on {self.server_address[0]}:{self.server_address[1]}')
-        try:
-            self.serve_forever()
-        except KeyboardInterrupt:
-                sys.exit(0)
-        
+    def __init__(self, host, port) -> None:
+        self.host, self.port = host, port
+        self.server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.server.bind((host, port))
+        print(f'[TCP] Listening on {host}:{port}')
+        self.server.listen(5)
+
     def add(self, router: HandlerRouter):
         self.router.add(router)
 
-    def stop(self):
-        self.shutdown()
-        self.server_close()
+    def loop(self) -> None:
+        while True:
+            try:
+                clientsocket, address = self.server.accept()
+                self.conns[address] = Connection(self, clientsocket, address, (self.host, self.port))
+                logger.opt(colors=True).info(f'<cyan>Client connected from </cyan><yellow>{address[0]}:{address[1]}</yellow>')
+                while clientsocket is not None:
+                    try:
+                        msg = clientsocket.recv(2048)
+                        conn = self.conns[address]
+                        conn.handle(msg)
+                    except ConnectionResetError:
+                        logger.opt(colors=True).info(f'<yellow>{address[0]}:{address[1]}</yellow> <cyan>has disconnected!</cyan>')
+                        break
+            except:
+                traceback.print_exc()
 
     def start(self):
-        b = threading.Thread(name='GameServer', target=self.start_server)
-        b.daemon=True
+        b = threading.Thread(name='GameServer', target=self.loop)
+        b.daemon = True
         b.start()
