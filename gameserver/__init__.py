@@ -15,7 +15,6 @@ class Connection(socketserver.BaseRequestHandler):
         while True:
             self.data = self.request.recv(2048).strip()
             packet = Packet().parse(self.data)
-            print(bytes(packet.body).hex())
             if handler := self.server.router.get(packet.cmdid):
                 logger.opt(colors=True).debug(f'<yellow>{self.client_address[0]}</yellow> Receive: <cyan>{packet.body}</cyan>')
                 handler(self, packet.body)
