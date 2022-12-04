@@ -12,13 +12,14 @@ import sys
 class Connection(socketserver.BaseRequestHandler):
 
     def handle(self):
-        self.data = self.request.recv(2048).strip()
-        packet = Packet().parse(self.data)
-        logger.opt(colors=True).debug(f'<yellow>{self.client_address[0]}</yellow> Receive: <cyan>{packet.body}</cyan>')
-        if handler := self.server.router.get(packet.cmdid):
-            handler(self, packet.body)
-        else:
-            logger.opt(colors=True).warning(f'<red>Unhandled Packet</red> : <cyan>{packet.cmdid.name}</cyan> ')
+        while True:
+            self.data = self.request.recv(2048).strip()
+            packet = Packet().parse(self.data)
+            if handler := self.server.router.get(packet.cmdid):
+                logger.opt(colors=True).debug(f'<yellow>{self.client_address[0]}</yellow> Receive: <cyan>{packet.body}</cyan>')
+                handler(self, packet.body)
+            else:
+                logger.opt(colors=True).warning(f'<red>Unhandled Packet:</red> <cyan>{packet.body}</cyan>')
 
     def send(self, msg: betterproto.Message, is_after_login: bool = True):
         packet = bytes(Packet(body=msg,is_after_login=is_after_login))

@@ -7,5 +7,4 @@ router = HandlerRouter()
 
 @router(CmdId.KeepAliveNotify)
 def handle_keep_alive(conn: Connection, msg: KeepAliveNotify):
-    print('KeepAliveNotify Received!!')
     pass
