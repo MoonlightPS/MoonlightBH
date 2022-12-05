@@ -1,6 +1,4 @@
 from bottle import route, run, request, Bottle
-import json
-import base64
 
 
 app = Bottle()
@@ -77,13 +75,14 @@ def route_login_v2():
     return {
         "message": "OK",
         "retcode": 0,
-        "data":
-        {
+        "data": {
             "account_type": 1,
             "combo_id": 0,
             "combo_token": "token",
-            "data": {"guest": False},
-            "fatigue_remind": "null",
+            "data": {
+                "guest": False
+            },
+            "fatigue_remind": None,
             "heartbeat": "False",
             "open_id": 1
         }
