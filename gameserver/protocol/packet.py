@@ -1,12 +1,15 @@
-
 from __future__ import annotations
 from gameserver.protocol.reader import BinaryReader
 from gameserver.protocol.cmd_id import CmdId
 from lib import proto
 import betterproto
-import json
 
 PACKET_MAGIC = (0x01234567, 0x89abcdef)
+
+# Example Packet structure (This for for GetPlayerTokenRsp)
+#                                                        cmdid?                      
+# magic1   pver cver   time   userid   userip   sessid   gateway  unk  bodylen       body (the protobuf)      magic2
+# 01234567 0001 0000 00000000 00000000 00000000 00000000 00000005 0000 0000000e 100120182a0131b00104d2010131 89abcdef
 
 class Packet:
     _packetVersion = 1
