@@ -8,6 +8,8 @@ import betterproto
 from loguru import logger
 import traceback
 
+loop_packets = ['SyncTimeReq', 'SyncTimeRsp', 'KeepAliveNotify']
+
 
 class Connection:
     game_server: GameServer
@@ -26,17 +28,19 @@ class Connection:
         packet.parse(data)
 
         if handler := self.game_server.router.get(packet.cmdid):
-            logger.opt(colors=True).debug(
-                f'<yellow>{self.client_address[0]}</yellow> Receive: <cyan>{packet.body}</cyan>')
+            if packet.cmdid.name not in loop_packets:
+                logger.opt(colors=True).debug(
+                    f'<yellow>{self.client_address[0]}</yellow> Receive: <cyan>{packet.body}</cyan>')
             handler(self, packet.body)
         else:
             logger.opt(colors=True).warning(
                 f'<red>Unhandled Packet:</red> <cyan>{packet.body}</cyan>')
 
     def send(self, msg: betterproto.Message, is_after_login: bool = True):
-        packet = bytes(Packet(body=msg, is_after_login=is_after_login))
-        logger.opt(colors=True).debug(
-            f'<yellow>{self.server_address[0]}</yellow> Send: <cyan>{msg}</cyan>')
+        packet = Packet(body=msg, is_after_login=is_after_login)
+        if packet.cmdid.name not in loop_packets:
+            logger.opt(colors=True).debug(
+                f'<yellow>{self.server_address[0]}</yellow> Send: <cyan>{msg}</cyan>')
         self.send_raw(bytes(packet))
 
     def send_raw(self, msg: bytes):
