@@ -25,10 +25,13 @@ class Connection:
         packet = Packet()
         packet.parse(data)
 
-        logger.opt(colors=True).debug(
-            f'<yellow>{self.client_address[0]}</yellow> Receive: <cyan>{packet.body}</cyan>')
         if handler := self.game_server.router.get(packet.cmdid):
+            logger.opt(colors=True).debug(
+                f'<yellow>{self.client_address[0]}</yellow> Receive: <cyan>{packet.body}</cyan>')
             handler(self, packet.body)
+        else:
+            logger.opt(colors=True).warning(
+                f'<red>Unhandled Packet:</red> <cyan>{packet.body}</cyan>')
 
     def send(self, msg: betterproto.Message, is_after_login: bool = True):
         packet = bytes(Packet(body=msg, is_after_login=is_after_login))
@@ -36,7 +39,7 @@ class Connection:
             f'<yellow>{self.server_address[0]}</yellow> Send: <cyan>{msg}</cyan>')
         self.send_raw(bytes(packet))
 
-    def send_raw(self,msg: bytes):
+    def send_raw(self, msg: bytes):
         self.sock.sendall(msg)
 
 
@@ -81,15 +84,18 @@ class GameServer:
         while True:
             try:
                 clientsocket, address = self.server.accept()
-                self.conns[address] = Connection(self, clientsocket, address, (self.host, self.port))
-                logger.opt(colors=True).info(f'<cyan>Client connected from </cyan><yellow>{address[0]}:{address[1]}</yellow>')
+                self.conns[address] = Connection(
+                    self, clientsocket, address, (self.host, self.port))
+                logger.opt(colors=True).info(
+                    f'<cyan>Client connected from </cyan><yellow>{address[0]}:{address[1]}</yellow>')
                 while clientsocket is not None:
                     try:
                         msg = clientsocket.recv(2048)
                         conn = self.conns[address]
                         conn.handle(msg)
                     except ConnectionResetError:
-                        logger.opt(colors=True).info(f'<yellow>{address[0]}:{address[1]}</yellow> <cyan>has disconnected!</cyan>')
+                        logger.opt(colors=True).info(
+                            f'<yellow>{address[0]}:{address[1]}</yellow> <cyan>has disconnected!</cyan>')
                         break
             except:
                 traceback.print_exc()
